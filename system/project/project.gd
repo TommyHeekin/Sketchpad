@@ -4,6 +4,10 @@ extends Resource
 signal new_current_page(page: Page)
 signal frames_update
 
+## Variable definitons for undo feature using UndoRedo object
+const MAX_UNDOS: int = 20
+var undo_redo: UndoRedo
+
 @export var title: String = "New Animation"
 @export var framerate: float = 1.0
 
@@ -23,6 +27,10 @@ signal frames_update
 var current_layer: int = 1
 var current_frame: int = 0
 
+## Function to initialize the UndoRedo object
+func _init() -> void:
+	undo_redo = UndoRedo.new()
+	undo_redo.max_steps = MAX_UNDOS
 
 ## Initializes a new project. [br]
 ## Used instead of [code]_init[/code] to avoid overwriting loaded data.
@@ -133,3 +141,51 @@ func delete_frame(idx: int) -> void:
 
 func _on_frame_update() -> void:
 	new_current_page.emit(frames[current_frame])
+
+## Function that records a change to a layer for a later undo
+func start_edit() -> Dictionary:
+	var page := get_current_page()
+	
+	return{
+		"page": page,
+		"layer": current_layer,
+		"before": page.layers[current_layer].duplicate()
+	}
+
+## Finishes recording an edit
+func commit_edit(edit: Dictionary, name: String) -> void:
+	# Define variables for the current edit
+	var page: Page = edit["page"]
+	var layer_index: int = edit["layer"]
+	var before: Image = edit["before"]
+	
+	# Copy the image after an edit is made
+	var after: Image = page.layers[layer_index].duplicates()
+	
+	# If nothing changed in the edit, return
+	if before.get_data() == after.get_data():
+		return
+	
+	# Use built-in function to create an action
+	undo_redo.create_action(name)
+	
+	# Will be called when function is committed
+	undo_redo.add_do_method(_restore_layer.bind(page, layer_index, after))
+	
+	# Will be called when an action is undone
+	undo_redo.add_undo_method(_restore_layer.bind(page, layer_index, before))
+	undo_redo.commit_action(false)
+
+## Helper functiont that restores previous layer during undo action
+func _restore_layer(page: Page, layer_index: int, image: Image) -> void:
+	page.set_layer(layer_index, image.duplicate())
+
+## Undo the most recent change to the canvas
+func undo() -> void:
+	# Built-in functions to check if undo is available before undoing canvas
+	if undo_redo.has_undo():
+		undo_redo.undo()
+
+## Getter function for has_undo() boolean of the UndoRedo object
+func can_undo() -> bool:
+	return undo_redo.has_undo()
