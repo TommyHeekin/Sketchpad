@@ -160,7 +160,7 @@ func commit_edit(edit: Dictionary, name: String) -> void:
 	var before: Image = edit["before"]
 	
 	# Copy the image after an edit is made
-	var after: Image = page.layers[layer_index].duplicates()
+	var after: Image = page.layers[layer_index].duplicate()
 	
 	# If nothing changed in the edit, return
 	if before.get_data() == after.get_data():
