@@ -11,14 +11,15 @@ signal tool_changed(tool: Tool)
 
 var project: Project
 var current_page: Page
-## Variables used for implementing undo
-var _editing_project: Project
-var _editing_tool: Tool
-var _edit_snapshot: Dictionary
 var current_tool: Tool:
 	set(value):
 		current_tool = value
 		tool_changed.emit(value)
+
+## Variables used for implementing undo
+var _editing_project: Project
+var _editing_tool: Tool
+var _edit_snapshot: Dictionary
 
 
 func _ready() -> void:
@@ -72,7 +73,6 @@ func _handle_canvas_input(event: InputEvent) -> void:
 						_edit_snapshot = {}
 					# Move the tool pointer down to show an edit is beginning
 					_editing_tool.on_pointer_down(canvas_pos, canvas)
-				
 				# If mouse is released
 				elif not event.pressed:
 					# Finishes the tool interaction
@@ -83,14 +83,12 @@ func _handle_canvas_input(event: InputEvent) -> void:
 						tool = current_tool
 					if tool is Tool:
 						await tool.on_pointer_up(canvas_pos, canvas)
-					
 					# Calls commit_edit() to save this state as an edit that can be undone
 					if _editing_project and not _edit_snapshot.is_empty():
 						_editing_project.commit_edit(_edit_snapshot, tool.name)
 					_editing_project = null
 					_editing_tool = null
 					_edit_snapshot = {}
-		
 		elif event is InputEventMouseMotion:
 			if current_tool is Tool:
 				current_tool.on_pointer_move(canvas_pos, canvas)
