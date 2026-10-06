@@ -40,3 +40,27 @@ func test_distant_page_backward():
 
 	var far_page = project.get_distant_page(-2)
 	assert_null(far_page)
+
+func test_undo_edit():
+	var page = project.get_current_page()
+	var edit = project.start_edit()
+	var layer = page.layers[project.current_layer]
+	layer.set_pixel(0, 0, Color.RED)
+	page.set_layer(project.current_layer, layer)
+	project.commit_edit(edit, "Paint")
+	assert_eq(page.layers[project.current_layer].get_pixel(0, 0), Color.RED)
+	assert_true(project.can_undo())
+	project.undo()
+	assert_eq(page.layers[project.current_layer].get_pixel(0, 0), Color.TRANSPARENT)
+
+func test_max_undos():
+	var page = project.get_current_page()
+	for i in range(Project.MAX_UNDOS+1):
+		var edit = project.start_edit()
+		var layer = page.layers[project.current_layer]
+		layer.set_pixel(0, 0, Color(float(i + 1) / 255.0, 0, 0, 1))
+		page.set_layer(project.current_layer, layer)
+		project.commit_edit(edit, "Paint")
+	for j in range(Project.MAX_UNDOS):
+		project.undo()
+	assert_false(project.can_undo(), "Only the most recent 20 edits should be undoable")
