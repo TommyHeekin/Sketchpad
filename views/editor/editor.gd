@@ -16,6 +16,11 @@ var current_tool: Tool:
 		current_tool = value
 		tool_changed.emit(value)
 
+## Variables used for implementing undo
+var _editing_project: Project
+var _editing_tool: Tool
+var _edit_snapshot: Dictionary
+
 
 func _ready() -> void:
 	canvas.canvas_input.connect(_handle_canvas_input)
@@ -56,11 +61,47 @@ func _handle_canvas_input(event: InputEvent) -> void:
 		var canvas_pos = canvas.dynamic_node.get_local_mouse_position()
 		if event is InputEventMouseButton:
 			if event.button_index == MOUSE_BUTTON_LEFT:
-				if current_tool is Tool:
-					if event.pressed:
-						current_tool.on_pointer_down(canvas_pos, canvas)
+				# Saves the project state on mouse press for future undos
+				# Calls the commit_edit() function in project.gd on mouse release
+				if event.pressed and current_tool is Tool:
+					# Save the current project state
+					_editing_project = project
+					_editing_tool = current_tool
+					if _editing_project:
+						_edit_snapshot = _editing_project.start_edit()
 					else:
-						current_tool.on_pointer_up(canvas_pos, canvas)
+						_edit_snapshot = {}
+					# Move the tool pointer down to show an edit is beginning
+					_editing_tool.on_pointer_down(canvas_pos, canvas)
+				# If mouse is released
+				elif not event.pressed:
+					# Finishes the tool interaction
+					var tool
+					if _editing_tool:
+						tool = _editing_tool
+					else:
+						tool = current_tool
+					if tool is Tool:
+						await tool.on_pointer_up(canvas_pos, canvas)
+					# Calls commit_edit() to save this state as an edit that can be undone
+					if _editing_project and not _edit_snapshot.is_empty():
+						_editing_project.commit_edit(_edit_snapshot, tool.name)
+					_editing_project = null
+					_editing_tool = null
+					_edit_snapshot = {}
 		elif event is InputEventMouseMotion:
 			if current_tool is Tool:
 				current_tool.on_pointer_move(canvas_pos, canvas)
+
+## Function to trigger undo when Ctrl+Z or Cmd+Z (Mac) is input
+func _unhandled_key_input(event: InputEvent) -> void:
+	if (
+		event is InputEventKey
+		and event.pressed
+		and not event.echo
+		and event.keycode == KEY_Z
+		and (event.ctrl_pressed or event.meta_pressed)
+		and project
+	):
+		project.undo()
+		get_viewport().set_input_as_handled()

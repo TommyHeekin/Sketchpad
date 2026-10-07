@@ -42,7 +42,7 @@ func on_pointer_move(_position: Vector2, _canvas: Canvas) -> void:
 
 func on_pointer_up(_position: Vector2, _canvas: Canvas) -> void:
 	_has_last = false
-	_canvas.bake_page()
+	await _canvas.bake_page()
 
 
 func generate_stamp() -> Texture2D:
